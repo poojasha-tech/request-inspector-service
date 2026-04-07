@@ -18,12 +18,12 @@ model Endpoint{
 }
 model Request{
   id         Int      @id @default(autoincrement())
-  endpointId  Int
+  endpointId  Int //foreign key 
   method     String
   ip        String
   headers    String
   body       String ?
   createdAt  DateTime @default(now())
 
-  endpoint Endpoint @relation(fields: [endpointId], references: [id])
+  endpoint Endpoint @relation(fields: [endpointId], references: [id]) // that is match endpointId in Request with id in Endpoint
 }

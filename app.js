@@ -6,10 +6,20 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json()); // Middleware to parse JSON bodies. This will allow us to access req.body for JSON payloads.
-app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded data
-app.use(express.text({ type: 'text/*' })); // Middleware to parse text/plain content types
+app.use(express.json({limit:'10mb'})); // Middleware to parse JSON bodies. This will allow us to access req.body for JSON payloads.
+app.use(express.urlencoded({ extended: true , limit:'10mb' })); // Middleware to parse URL-encoded data
+app.use(express.text({ type: 'text/*' , limit:'10mb' })); // Middleware to parse text/plain content types
 app.use('/api', api);
+
+
+app.set('timeout', 30 * 1000); // for normal APIs
+//lon timeout for SSE routes
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/stream/')) {
+        res.setTimeout(0); // Disable timeout for SSE
+    }
+    next();
+});
 
 // Sample route
 app.get('/api/hello', (req, res) => {

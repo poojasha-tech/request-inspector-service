@@ -3,7 +3,7 @@ const router = express.Router();
 import prisma from '../prisma/db.js';
 import crypto from 'crypto';
 
-
+// lets do with long pooling , SSE is pretty specific 
 // could also do this with setInterval for every 2000 ms check for new requests 
 // and send updates to clients but using database triggers is more efficient and real-time
 // setInterval(async()=>{
@@ -35,80 +35,157 @@ import crypto from 'crypto';
 
 
 // SSE (Server-Sent Events) endpoint to stream real-time updates to the client
-const clients=[];
-router.get('/stream',(req,res)=>{
-    res.setHeader('content-type','text/event-stream');
-    res.setHeader('cache-control','no-cache');
-    res.setHeader('connection','keep-alive');
+
+
+const clients = [];
+//heartbeat interval to delete disconnected clients from array
+setInterval(() => {
+    for (let i = clients.length - 1; i >= 0; i--) {
+        const client = clients[i]
+        if (client.res.finished) {
+            clients.splice(i, 1);
+        }
+    }
+}, 30000) //every 30 seconds;
+
+
+router.get('/stream/:slug', (req, res) => {
+    res.setHeader('content-type', 'text/event-stream');
+    res.setHeader('cache-control', 'no-cache');
+    res.setHeader('connection', 'keep-alive');
     res.flushHeaders(); // flush the headers to establish the SSE connection
 
-    const clientId=Date.now();
-    const newClient={
-        id:clientId,
-        res
-    }
-    clients.push(newClient);
+    const client = { slug: req.params.slug, res }
+    clients.push(client)
+
+    //initial connected message
+    res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+    //heartbeat every 15 seconds
+    const heartbeat = setInterval(() => {
+        if (res.finished) {
+            clearInterval(heartbeat);
+            const idx = clients.findIndex(c => c.res === res)
+            if (idx !== -1) clients.splice(idx, 1);
+        }
+        else {
+            res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`)
+        }
+    }, 15000);
 
     // When the client disconnects, we will remove it from the clients array
-    req.on('close',()=>{
-        const index=clients.findIndex(client=>client.id===clientId); 
-        if(index!==-1){ // if client is found, we will remove it from the clients array to prevent memory leaks and unnecessary processing
-            clients.splice(index,1); // remove only the disconnected client from the clients array
-        }   
+    req.on('close', () => {
+        clearInterval(heartbeat)
+        const index = clients.findIndex(c => c.res === res); // find the index of the disconnected client in the clients array
+        if (index !== -1) { // if client is found, we will remove it from the clients array to prevent memory leaks and unnecessary processing
+            clients.splice(index, 1); // remove only the disconnected client from the clients array
+        }
     });
 })
 
-//send updates to all connected clients
-function broadcast(data){
-    clients.forEach(client=>{
-        client.res.write(`data: ${JSON.stringify(data)}\n\n`); // send data to the client in SSE format
+
+//send updates to the client
+function broadcast(slug, data) {
+    //limit size of the body and headers
+
+    const message = `data: ${JSON.stringify(data)}\n\n`
+    clients.forEach(client => {
+        if (client.slug === slug) {
+            client.res.write(message)
+        }
     })
 }
 
 // this route will create a new endpoint with a unique slug and return the URL to the client
 router.post('/endpoint', async (req, res) => { // this route will create a new endpoint with a unique slug and return the URL to the client
-    const slug=crypto.randomBytes(4).toString('hex'); // Generate a random slug
-    const endpoint=await prisma.endpoint.create({
-        data:{
+    const slug = crypto.randomBytes(4).toString('hex'); // Generate a random slug
+    const endpoint = await prisma.endpoint.create({
+        data: {
             slug
         }
     })
     res.json({
-        url:`/q/${endpoint.slug}`,
+        url: `/q/${endpoint.slug}`,
     });
 })
-router.all('/q/:slug', async (req, res) => { // this route will capture all incoming requests to the generated endpoint 
-                                             // and store the request details in the database
-    const {slug}=req.params;
-    const endpoint=await prisma.endpoint.findUnique({
-        where:{
-            slug
-        }
-    })
-    if(!endpoint){
-        return res.status(404).json({error:'Endpoint not found'})
-    }
-    // if endpoint exists, we will store the request details in the database
-    const savedRequest=await prisma.request.create({
-        data:{
-            method:req.method,
-            headers:JSON.stringify(req.headers), 
-            body:req.body ? JSON.stringify(req.body) : null, 
-            ip:req.ip, 
-            endpointId:endpoint.id
-        }
-    })
-    res.json({
-        message:'Request received',
-        data:{
-            method:savedRequest.method,
-            headers:JSON.parse(savedRequest.headers),
-            body:savedRequest.body ? JSON.parse(savedRequest.body) : null,
-            ip:savedRequest.ip
-        }
-    })  
 
+router.all('/q/:slug', async (req, res) => {
+    try {
+        const slug = req.params.slug;
+        const endpoint = await prisma.endpoint.findUnique({
+            where: {
+                slug
+            }
+        })
+        if (!endpoint) {
+            return res.status(404).json({ error: 'Endpoint not found' })
+        }
+
+        const requestData = {
+            method: req.method,
+            headers: JSON.stringify(req.headers),
+            body: req.body ? JSON.stringify(req.body) : null,
+            ip: req.ip,
+            createdAt: endpoint.createdAt.toISOString(),
+            endpointId: endpoint.id
+        }
+
+        const savedRequest = await prisma.request.create({
+            data: requestData
+        })
+
+        broadcast(slug, {
+            method: savedRequest.method,
+            ip: savedRequest.ip,
+            headers: savedRequest.headers ? JSON.parse(savedRequest.headers) : {},
+            body: savedRequest.body ? JSON.parse(savedRequest.body) : {},
+            createdAt: savedRequest.createdAt.toISOString()
+        })
+
+        res.json({
+            message: 'Request received',
+            data: {
+                method: savedRequest.method,
+                headers: JSON.parse(savedRequest.headers),
+                body: savedRequest.body ? JSON.parse(savedRequest.body) : null,
+                ip: savedRequest.ip
+            }
+        })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send("something went wrong!")
+
+
+    }
 })
 
+router.get('/endpoint/:slug/request', async (req, res) => {
+    try {
+        const slug = req.params.slug
+
+        const endpoint = await prisma.endpoint.findUnique({
+            where: {
+                slug: slug
+            },
+            include: {
+                requests: {
+                    orderBy: { createdAt: "desc" }
+                }
+            }
+        })
+        if (!endpoint) {
+            return res.status(404).send("Endpoint not found")
+        }
+        res.json({
+            slug: endpoint.slug,
+            requests: endpoint.requests
+        })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send("Something went wrong!")
+    }
+})
 export default router;
 
