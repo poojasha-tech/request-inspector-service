@@ -1,8 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import prisma from '../prisma/db.js';
-import crypto from 'crypto';
-
+import { generateSignedId, validateSignedId } from './helper.js';
 // lets do with long pooling , SSE is pretty specific 
 // could also do this with setInterval for every 2000 ms check for new requests 
 // and send updates to clients but using database triggers is more efficient and real-time
@@ -98,59 +97,31 @@ function broadcast(slug, data) {
 
 // this route will create a new endpoint with a unique slug and return the URL to the client
 router.post('/endpoint', async (req, res) => { // this route will create a new endpoint with a unique slug and return the URL to the client
-    const slug = crypto.randomBytes(4).toString('hex'); // Generate a random slug
-    const endpoint = await prisma.endpoint.create({
-        data: {
-            slug
-        }
-    })
     res.json({
-        url: `/q/${endpoint.slug}`,
+        url: `/q/${generateSignedId()}`,
     });
 })
-
+// localhost;4000/q/41234njilkj
 router.all('/q/:slug', async (req, res) => {
     try {
         const slug = req.params.slug;
-        const endpoint = await prisma.endpoint.findUnique({
-            where: {
-                slug
-            }
-        })
-        if (!endpoint) {
-            return res.status(404).json({ error: 'Endpoint not found' })
+        if(!validateSignedId(slug)) {
+            return res.status(404).send("Invalid slug")
         }
-
-        const requestData = {
+      
+      const requestData = {
+            url: slug,
             method: req.method,
             headers: JSON.stringify(req.headers),
             body: req.body ? JSON.stringify(req.body) : null,
             ip: req.ip,
-            createdAt: endpoint.createdAt.toISOString(),
-            endpointId: endpoint.id
         }
 
         const savedRequest = await prisma.request.create({
             data: requestData
         })
 
-        broadcast(slug, {
-            method: savedRequest.method,
-            ip: savedRequest.ip,
-            headers: savedRequest.headers ? JSON.parse(savedRequest.headers) : {},
-            body: savedRequest.body ? JSON.parse(savedRequest.body) : {},
-            createdAt: savedRequest.createdAt.toISOString()
-        })
-
-        res.json({
-            message: 'Request received',
-            data: {
-                method: savedRequest.method,
-                headers: JSON.parse(savedRequest.headers),
-                body: savedRequest.body ? JSON.parse(savedRequest.body) : null,
-                ip: savedRequest.ip
-            }
-        })
+        res.status(200).send({status: "ok"})
 
     } catch (error) {
         console.log(error)
@@ -162,30 +133,25 @@ router.all('/q/:slug', async (req, res) => {
 
 router.get('/endpoint/:slug/request', async (req, res) => {
     try {
-        const slug = req.params.slug
-
-        const endpoint = await prisma.endpoint.findUnique({
-            where: {
-                slug: slug
-            },
-            include: {
-                requests: {
-                    orderBy: { createdAt: "desc" }
-                }
-            }
-        })
-        if (!endpoint) {
-            return res.status(404).send("Endpoint not found")
+      const slug = req.params.slug
+      
+      if (!validateSignedId(slug)) {
+          return res.status(404).send("Invalid slug")
         }
-        res.json({
-            slug: endpoint.slug,
-            requests: endpoint.requests
+      
+        const requests = await prisma.request.findMany({
+            where: {
+                url: slug
+            },
         })
+      
+        res.json(requests)
 
     } catch (error) {
         console.log(error)
         res.status(500).send("Something went wrong!")
     }
 })
+
 export default router;
 
