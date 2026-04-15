@@ -10,20 +10,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Endpoint{
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  requests   Request[]
-}
+
 model Request{
-  id         Int      @id @default(autoincrement())
-  endpointId  Int //foreign key 
+  id      String     @id @default(cuid())
+  url      String 
   method     String
   ip        String
   headers    String
   body       String ?
   createdAt  DateTime @default(now())
-
-  endpoint Endpoint @relation(fields: [endpointId], references: [id]) // that is match endpointId in Request with id in Endpoint
 }
