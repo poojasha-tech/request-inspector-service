@@ -4,18 +4,18 @@ const endPointUrlEl = document.getElementById("endpointUrl");
 const requestsEl = document.getElementById("requests");
 
 //const backend_url='http://localhost:3000';
+    const BACKEND_URL = "http://localhost:3000/api";
 
 newEndPointBtn.addEventListener("click", async () => {
     try {
-        const response = await fetch('http://localhost:3000/api/endpoint', { method: 'POST' });
+        const response = await fetch(BACKEND_URL + '/endpoint', { method: 'POST' });
         const data = await response.json();
 
         const url = data.url;
         slug = url.split('/q/')[1];
         localStorage.setItem("slug", slug);
 
-        const BACKEND_URL = "http://localhost:3000";
-        endPointUrlEl.textContent = `Your unique link: ${BACKEND_URL}/api/q/${slug}`;
+        endPointUrlEl.textContent = `Your unique link: ${BACKEND_URL}/q/${slug}`;
         fetchNewRequest();
 
         // Set up polling every 5 seconds
@@ -31,7 +31,7 @@ async function fetchNewRequest() {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/api/endpoint/${slug}/request`
+      `${BACKEND_URL}/endpoint/${slug}/request`
     );
 
     const data = await response.json();
@@ -71,13 +71,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (savedSlug) {
         slug = savedSlug;
 
-        const BACKEND_URL = "http://localhost:3000";
-        endPointUrlEl.textContent = `Your unique link: ${BACKEND_URL}/api/q/${slug}`;
+        endPointUrlEl.textContent = `Your unique link: ${BACKEND_URL}/q/${slug}`;
 
         requestsEl.innerHTML = ""
 
         const res = await fetch(
-            `http://localhost:3000/api/endpoint/${slug}/request`
+            `${BACKEND_URL}/endpoint/${slug}/request`
         );
 
         const data = await res.json();

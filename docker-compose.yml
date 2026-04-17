@@ -1,21 +1,13 @@
 services:
 
   api:
-    build: .
+    build: ./backend
     container_name: request-inspector-service
     ports:
       - "3000:3000"
-    volumes:
-      - .:/app
-    environment:
-      DATABASE_URL: "file:./prisma/dev.db"
-    command: sh -c "npx prisma db push && node app.js"
 
   frontend:
     build: ./frontend
     container_name: request-inspector-ui
     ports:
-      - "8081:80"
-
-    volumes:
-      - ./frontend:/usr/share/nginx/html
+      - "80:80"

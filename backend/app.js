@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import api from './backend/api.js';
+import api from './api.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;

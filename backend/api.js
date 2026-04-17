@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import prisma from '../prisma/db.js';
+import prisma from './prisma/db.js';
 import { generateSignedId } from './helper.js';
 import { validateSignedId } from './helper.js';
 

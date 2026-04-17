@@ -1,5 +1,7 @@
-FROM nginx:alpine
+FROM node:20-alpine3.16
 
-COPY . /usr/share/nginx/html
+COPY . .
 
 EXPOSE 80
+
+CMD ["npx", "serve", ".", "-p", "80"]
