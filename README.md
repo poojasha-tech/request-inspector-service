@@ -4,8 +4,6 @@
   point any webhook or HTTP client at it, and inspect every incoming request (headers, body, method, IP) through a small
   dashboard.
 
-  Built as a learning project to explore signed identifiers, multi-container deployment with Docker Compose, and persistent
-   request capture with Prisma.
 
   ## Demo
 
