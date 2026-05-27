@@ -4,7 +4,7 @@ const endPointUrlEl = document.getElementById("endpointUrl");
 const requestsEl = document.getElementById("requests");
 
 //const backend_url='http://localhost:3000';
-    const BACKEND_URL = "http://localhost:3000/api";
+    const BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:3000/api`;
 
 newEndPointBtn.addEventListener("click", async () => {
     try {
