@@ -7,7 +7,7 @@
 
   ## Demo
 
-  **Live at [https://poojadev.de](https://poojadev.de)** — click *Create new Endpoint*, then send a request to the URL it
+  **Live at [https://inspector.poojadev.de](https://inspector.poojadev.de)** — click *Create new Endpoint*, then send a request to the URL it
   gives you to see it captured in real time.
 
   Try it from your terminal:
