@@ -20,8 +20,11 @@ app.get('/api/hello', (req, res) => {
 app.get('/page', (req, res) => {
   res.send('<h1>Hello</h1>');
 });
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
 
 export default app;
