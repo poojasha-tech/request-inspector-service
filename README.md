@@ -1,5 +1,7 @@
 # Request Inspector Service
 
+![CI](https://github.com/poojasha-tech/request-inspector-service/actions/workflows/ci.yml/badge.svg)
+
   A self-hosted HTTP request inspector — a lightweight alternative to webhook.site or requestbin. Create a unique URL,
   point any webhook or HTTP client at it, and inspect every incoming request (headers, body, method, IP) through a small
   dashboard.
@@ -136,6 +138,16 @@
   npx serve . -p 8080
   ```
 
+  ### Running tests
+
+  ```bash
+  cd backend
+  npm test          # one-shot run
+  npm run test:watch # re-runs on file changes
+  ```
+
+  Unit tests cover the HMAC signing helpers; integration tests exercise the Express routes via Supertest against a throwaway SQLite database.
+
   ## Production Deployment
 
   The live instance runs on AWS EC2 (Debian, arm64) with this topology:
@@ -190,8 +202,8 @@
   - [ ] Add request retention / TTL so the DB doesn't grow unbounded
   - [ ] Pagination on the list endpoint
   - [ ] Switch SQLite to Postgres for multi-instance deployments
-  - [ ] Add tests (Vitest + Supertest)
-  - [ ] CI pipeline (GitHub Actions) for lint + test + image build
+  - [x] Add tests (Vitest + Supertest)
+  - [x] CI pipeline (GitHub Actions) for lint + test + image build
   - [ ] Auth so endpoints aren't world-readable
   - [x] Deploy to production (currently: AWS EC2 + Nginx + Let's Encrypt)
 
