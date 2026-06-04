@@ -1,26 +1,20 @@
-# Use official Node image
 FROM node:20-alpine3.16
 
-# Set working directory
 WORKDIR /app
 
-# Set default environment variable
 ENV DATABASE_URL="file:./dev.db"
 
-# Copy package files first (for caching)
 COPY package*.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy rest of project
 COPY . .
 
-# create db schema and generate prisma client
 RUN npx prisma@5 db push
 
-# Expose port
 EXPOSE 3000
 
-# Start app
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/healthz').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
+
 CMD ["node", "app.js"]

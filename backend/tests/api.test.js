@@ -3,6 +3,23 @@ import request from 'supertest';
 import app from '../app.js';
 import prisma from '../prisma/db.js';
 
+describe('GET /healthz', () => {
+  test('returns 200 with status ok', async () => {
+    const res = await request(app).get('/healthz');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+});
+
+describe('GET /readyz', () => {
+  test('returns 200 when the database is reachable', async () => {
+    const res = await request(app).get('/readyz');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ready');
+    expect(res.body.db).toBe('ok');
+  });
+});
+
 describe('POST /api/endpoint', () => {
   test('returns a new signed URL', async () => {
     const res = await request(app).post('/api/endpoint');
