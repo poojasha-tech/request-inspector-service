@@ -84,6 +84,8 @@
   | POST   | `/endpoint`               | Create a new inspection endpoint (returns URL) |
   | ANY    | `/q/:slug`                | Capture and store an incoming request          |
   | GET    | `/endpoint/:slug/request` | List all captured requests for a slug          |
+  | GET    | `/healthz`                | Liveness probe — returns `{ status: "ok" }`    |
+  | GET    | `/readyz`                 | Readiness probe — checks DB connectivity       |
 
   ### Response examples
 
