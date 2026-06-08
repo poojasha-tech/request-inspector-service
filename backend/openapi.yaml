@@ -1,0 +1,253 @@
+openapi: 3.0.3
+info:
+  title: Request Inspector Service API
+  version: 1.0.0
+  description: |
+    A small service that gives you a unique, signed URL. Any HTTP request sent
+    to that URL is captured (method, headers, body, IP) and can be retrieved
+    later. Useful for inspecting webhooks, debugging client integrations, or
+    learning how HTTP requests are shaped.
+  contact:
+    name: Pooja Sharma
+    url: https://inspector.poojadev.de
+  license:
+    name: ISC
+
+servers:
+  - url: https://inspector.poojadev.de
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Endpoints
+    description: Create and inspect capture URLs
+  - name: Capture
+    description: The catch-all URL that records incoming requests
+  - name: Health
+    description: Liveness and readiness probes
+
+paths:
+  /api/endpoint:
+    post:
+      tags: [Endpoints]
+      summary: Create a new signed capture URL
+      description: |
+        Generates a fresh, HMAC-signed slug and returns the URL you can send
+        requests to. Each call produces a different URL.
+      responses:
+        '200':
+          description: New capture URL created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /q/V1StGXR8_Z5jdHi6B-myT.a1b2c3
+                required: [url]
+
+  /api/q/{slug}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [Capture]
+      summary: Capture a GET request
+      responses:
+        '200':
+          $ref: '#/components/responses/Captured'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Capture]
+      summary: Capture a POST request
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              example:
+                hello: world
+          text/plain:
+            schema:
+              type: string
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Captured'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Capture]
+      summary: Capture a PUT request
+      responses:
+        '200':
+          $ref: '#/components/responses/Captured'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+    delete:
+      tags: [Capture]
+      summary: Capture a DELETE request
+      responses:
+        '200':
+          $ref: '#/components/responses/Captured'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+    patch:
+      tags: [Capture]
+      summary: Capture a PATCH request
+      responses:
+        '200':
+          $ref: '#/components/responses/Captured'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+
+  /api/endpoint/{slug}/request:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [Endpoints]
+      summary: List all captured requests for a slug
+      responses:
+        '200':
+          description: Captured requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CapturedRequest'
+        '400':
+          $ref: '#/components/responses/InvalidSlug'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: |
+        Returns 200 as long as the process is up and the event loop is
+        responsive. Used by Docker HEALTHCHECK and orchestrators to decide
+        whether to restart the container.
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: |
+        Returns 200 only if the service can do real work — currently this
+        means the database is reachable. Returns 503 if the DB query fails.
+      responses:
+        '200':
+          description: Service is ready to handle traffic
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  db:
+                    type: string
+                    example: ok
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: not ready
+                  db:
+                    type: string
+                    example: unreachable
+
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      description: HMAC-signed slug returned by `POST /api/endpoint`
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]+\.[0-9a-f]{6}$'
+        example: V1StGXR8_Z5jdHi6B-myT.a1b2c3
+
+  schemas:
+    CapturedRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        url:
+          type: string
+          description: The slug the request was sent to
+        method:
+          type: string
+          example: POST
+        headers:
+          type: string
+          description: JSON-serialised request headers
+        body:
+          type: string
+          nullable: true
+          description: JSON-serialised request body, or null if empty
+        ip:
+          type: string
+          example: 203.0.113.42
+        createdAt:
+          type: string
+          format: date-time
+
+  responses:
+    Captured:
+      description: Request captured successfully
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: request received!
+    InvalidSlug:
+      description: Slug failed HMAC verification
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: Invalid slug!
+    ServerError:
+      description: Unexpected server error
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: something went wrong!
