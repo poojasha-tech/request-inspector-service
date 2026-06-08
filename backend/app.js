@@ -1,12 +1,20 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import { pinoHttp } from 'pino-http';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yaml';
 import api from './api.js';
 import logger from './logger.js';
 import prisma from './prisma/db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const openapiSpec = YAML.parse(readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8'));
 
 app.use(pinoHttp({ logger }));
 app.use(cors());
@@ -26,6 +34,18 @@ app.get('/readyz', async (req, res) => {
     req.log.error({ err: error }, 'readiness check failed');
     res.status(503).json({ status: 'not ready', db: 'unreachable' });
   }
+});
+
+app.use(
+  '/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openapiSpec, {
+    customSiteTitle: 'Request Inspector API Docs',
+  }),
+);
+
+app.get('/openapi.json', (req, res) => {
+  res.json(openapiSpec);
 });
 
 app.use('/api', api);

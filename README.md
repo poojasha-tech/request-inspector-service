@@ -87,6 +87,16 @@
   | GET    | `/healthz`                | Liveness probe — returns `{ status: "ok" }`    |
   | GET    | `/readyz`                 | Readiness probe — checks DB connectivity       |
 
+  ### Interactive API Documentation
+
+  The backend serves an OpenAPI 3.0 spec and a Swagger UI explorer:
+
+  - **Swagger UI:** [`/docs`](https://inspector.poojadev.de/docs) — interactive, "Try it out" against the live API
+  - **Raw spec:** [`/openapi.json`](https://inspector.poojadev.de/openapi.json) — machine-readable, suitable for code generation (SDKs, Postman, mock servers)
+  - **Source:** [`backend/openapi.yaml`](backend/openapi.yaml) — hand-written, spec-first
+
+  Locally: http://localhost:3000/docs
+
   ### Response examples
 
   `POST /api/endpoint`

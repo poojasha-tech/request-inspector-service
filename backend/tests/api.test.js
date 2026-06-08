@@ -3,6 +3,23 @@ import request from 'supertest';
 import app from '../app.js';
 import prisma from '../prisma/db.js';
 
+describe('API documentation', () => {
+  test('GET /docs/ serves the Swagger UI', async () => {
+    const res = await request(app).get('/docs/');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Request Inspector API Docs');
+    expect(res.text).toContain('id="swagger-ui"');
+  });
+
+  test('GET /openapi.json returns the spec', async () => {
+    const res = await request(app).get('/openapi.json');
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toMatch(/^3\./);
+    expect(res.body.info.title).toBe('Request Inspector Service API');
+    expect(res.body.paths).toHaveProperty('/api/endpoint');
+  });
+});
+
 describe('GET /healthz', () => {
   test('returns 200 with status ok', async () => {
     const res = await request(app).get('/healthz');
