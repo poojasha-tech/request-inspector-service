@@ -74,12 +74,23 @@ describe('ANY /api/q/:slug', () => {
     expect(JSON.parse(saved[0].body)).toEqual({ payload: 'data' });
   });
 
-  test('rejects a tampered slug with 400', async () => {
+  test('rejects a tampered slug with 400 problem-details', async () => {
     const [id] = validSlug.split('.');
     const tampered = `${id}.000000`;
     const res = await request(app).post(`/api/q/${tampered}`).send({ x: 1 });
     expect(res.status).toBe(400);
-    expect(res.text).toBe('Invalid slug!');
+    expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(res.body.title).toBe('Invalid slug');
+    expect(res.body.status).toBe(400);
+    expect(res.body.instance).toBe(`/api/q/${tampered}`);
+  });
+
+  test('rejects a malformed slug shape with 400 validation problem', async () => {
+    const res = await request(app).post('/api/q/not-a-real-slug').send({ x: 1 });
+    expect(res.status).toBe(400);
+    expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(res.body.title).toBe('Validation failed');
+    expect(Array.isArray(res.body.errors)).toBe(true);
   });
 
   test('captures the HTTP method correctly', async () => {
@@ -102,8 +113,30 @@ describe('GET /api/endpoint/:slug/request', () => {
     expect(res.body.requests).toHaveLength(2);
   });
 
-  test('rejects a tampered slug with 400', async () => {
+  test('rejects a tampered slug with 400 problem-details', async () => {
     const res = await request(app).get('/api/endpoint/abc.000000/request');
     expect(res.status).toBe(400);
+    expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(res.body.title).toBe('Invalid slug');
+  });
+});
+
+describe('Security hardening', () => {
+  test('helmet sets X-Content-Type-Options header', async () => {
+    const res = await request(app).get('/healthz');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  test('helmet sets X-Frame-Options header', async () => {
+    const res = await request(app).get('/healthz');
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+  });
+
+  test('unknown route returns 404 problem-details', async () => {
+    const res = await request(app).get('/does-not-exist');
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(res.body.status).toBe(404);
+    expect(res.body.title).toBe('Resource not found');
   });
 });
