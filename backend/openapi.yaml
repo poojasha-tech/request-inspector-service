@@ -47,6 +47,8 @@ paths:
                     type: string
                     example: /q/V1StGXR8_Z5jdHi6B-myT.a1b2c3
                 required: [url]
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/q/{slug}:
     parameters:
@@ -203,6 +205,39 @@ components:
         example: V1StGXR8_Z5jdHi6B-myT.a1b2c3
 
   schemas:
+    Problem:
+      type: object
+      description: |
+        RFC 7807 Problem Details. All errors from this API use this shape with
+        a `Content-Type` of `application/problem+json`.
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://inspector.poojadev.de/problems/invalid-slug
+        title:
+          type: string
+          example: Invalid slug
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          example: The slug signature did not verify.
+        instance:
+          type: string
+          example: /api/q/abc.000000
+        errors:
+          type: array
+          description: Field-level details (present on validation errors)
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+      required: [type, title, status]
     CapturedRequest:
       type: object
       properties:
@@ -238,16 +273,27 @@ components:
             type: string
             example: request received!
     InvalidSlug:
-      description: Slug failed HMAC verification
+      description: Slug failed shape or HMAC verification
       content:
-        text/plain:
+        application/problem+json:
           schema:
-            type: string
-            example: Invalid slug!
+            $ref: '#/components/schemas/Problem'
     ServerError:
       description: Unexpected server error
       content:
-        text/plain:
+        application/problem+json:
           schema:
-            type: string
-            example: something went wrong!
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Request rate limit exceeded
+      headers:
+        RateLimit-Limit:
+          schema: { type: integer }
+        RateLimit-Remaining:
+          schema: { type: integer }
+        RateLimit-Reset:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
